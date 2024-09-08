@@ -3,12 +3,19 @@ from scipy.misc import derivative
 
 class RenormalizationGroup:
 
-    def __init__(self):
+    def __init__(self, decimation, dimension):
     
-        self.b = 2 #decimation
-        self.d = 1 #dimension
+        self.b = decimation
+        self.d = dimension
 
-        
+        # Set Migdal-Kadanoff bond-moving multiplier
+        if dimension == 1:
+            self.m = 1
+        elif dimension == 2:
+            self.m = decimation ** (dimension - 1)
+        else:
+            print("Dimension should be 1 or 2.")
+     
     def _pderivative(self, function, variable=0, point=[]):
         arguments = point[:]
         def wraps(x):
@@ -40,18 +47,24 @@ class RenormalizationGroup:
     
         return emax + np.log(np.exp(e1 - emax) + np.exp(e2 - emax))
     
-    def J(self, j, h):
+    def J(self, interaction, field):
+        j = self.m * interaction
+        h = self.m * field
         return (1/4) * (self._lnR1(j, h) + self._lnR2(j, h) - 2*self._lnR3(j, h))
     
-    def H(self, j, h):
+    def H(self, interaction, field):
+        j = self.m * interaction
+        h = self.m * field
         return (1/4) * (self._lnR1(j, h) - self._lnR2(j, h))
     
-    def G(self, j, h):
+    def G(self, interaction, field):
+        j = self.m * interaction
+        h = self.m * field
         return (1/4) * (self._lnR1(j, h) + self._lnR2(j, h) + 2*self._lnR3(j, h))
     
-    def recursion_matrix(self, j, h):
+    def _recursion_matrix(self, j, h):
 
-        m = self.b ** self.d
+        eigen = self.b ** self.d
     
         X = self._pderivative(self.G, 0, [j, h])
         Y = self._pderivative(self.J, 0, [j, h])
@@ -61,13 +74,13 @@ class RenormalizationGroup:
         B = self._pderivative(self.J, 1, [j, h])
         C = self._pderivative(self.H, 1, [j, h])
     
-        return np.array([[m, X, A],
-                         [0, Y, B],
-                         [0, Z, C]])
+        return np.array([[eigen, X,   A],
+                         [0,     Y,   B],
+                         [0,     Z,   C]])
 
-    def flow(self, initial_conditions, n):
+    def flow(self, interaction, field, n):
 
-        [j, h] = initial_conditions
+        j, h = interaction, field
         
         print("k,   J         H\n------------------")
         print(0, "  ", j, "    ", h)
@@ -105,7 +118,7 @@ class RenormalizationGroup:
             
                 for i in range(15):
                     
-                    U = (self.b ** (-self.d)) * np.dot(self.recursion_matrix(j, h), U)
+                    U = (self.b ** (-self.d)) * np.dot(self._recursion_matrix(j, h), U)
                     j, h = self.J(j, h), self.H(j, h)
                     
                 M = np.dot(Mn, U)
