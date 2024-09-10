@@ -3,18 +3,20 @@ from scipy.misc import derivative
 
 class RenormalizationGroup:
 
-    def __init__(self, decimation, dimension):
+    def __init__(self, dimension):
 
-        self.b = decimation
+        self.b = 2 # Decimation
         self.d = dimension
 
         # Set Migdal-Kadanoff bond-moving multiplier
         if dimension == 1:
             self.m = 1
-        elif dimension == 2:
-            self.m = decimation ** (dimension - 1)
+            
+        elif dimension >= 2:
+            self.m = self.b ** (dimension - 1)
+            
         else:
-            print("Dimension should be 1 or 2.")
+            print("Dimension should be a positive integer.")
 
     def _pderivative(self, function, variable=0, point=[]):
         arguments = point[:]
@@ -78,17 +80,51 @@ class RenormalizationGroup:
                          [0,     Y,   B],
                          [0,     Z,   C]])
 
-    def flow(self, interaction, field, n):
+    def flow(self, interaction, field, n, output=False):
 
         j, h = interaction, field
 
-        print("k,   J         H\n------------------")
-        print(0, "  ", j, "    ", h)
+        if output:
+            output = [[j, h]]
+        else:
+            print("k,   J         H\n------------------")
+            print(0, "  ", j, "    ", h)
 
         for i in range(n):
 
             j, h = self.J(j, h), self.H(j, h)
-            print(i+1, "  ", j, "    ", h)
+            if output:
+                output.append([j, h])
+            else:
+                print(i+1, "  ", j, "    ", h)
+
+        if output:
+            return np.array(output)
+
+    def critical_point(self, decimal_precision=5):
+
+        if self.d == 1:
+            print("There is no phase transition in 1D.")
+            return None
+        else:
+            pass
+
+        p = 0.01
+        jc = 0.02
+
+        for n in range(decimal_precision + 1):
+            jc = jc - p
+            p = 1 / 10**(n + 1)
+
+            while True:
+                jx = jc
+                jx = self.J(jx, 0)
+                if jx < jc:
+                    jc = jc + p
+                else:
+                    break
+
+        return round(jc, decimal_precision)
 
     def densities(self, field=0):
     # Densities under fixed H
@@ -114,9 +150,7 @@ class RenormalizationGroup:
                     Mn = [1, 0, 0]
 
                 U = np.identity(3)
-
                 for i in range(15):
-
                     U = (self.b ** (-self.d)) * np.dot(self._recursion_matrix(j, h), U)
                     j, h = self.J(j, h), self.H(j, h)
 
