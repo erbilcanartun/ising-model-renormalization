@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.misc import derivative
+import matplotlib.pyplot as plt
 
 class RenormalizationGroup:
 
@@ -11,10 +12,10 @@ class RenormalizationGroup:
         # Set Migdal-Kadanoff bond-moving multiplier
         if dimension == 1:
             self.m = 1
-            
+
         elif dimension >= 2:
             self.m = self.b ** (dimension - 1)
-            
+
         else:
             print("Dimension should be a positive integer.")
 
@@ -161,3 +162,40 @@ class RenormalizationGroup:
                 j_initial = j_initial + 0.01
 
             return np.array(temp_list), np.array(M_results)
+
+    def phase_portrait(self, interaction_strength=1, fields=np.linspace(-1, 1, 11), flow_step=30):
+
+        if self.d != 1:
+            print("Choose 1 dimensional system.")
+            return None
+
+        else:
+
+            plt.style.use('classic')
+            fig = plt.figure(figsize=(8, 6))
+            fig.set_facecolor('none')
+
+            lw = 2.5
+            fs = 20
+            plt.rc('lines', linewidth=lw)
+            plt.rc('axes', linewidth=lw)
+
+            ax = plt.subplot(111)
+
+            for h in fields:
+                flow = self.flow(interaction_strength, h, n=flow_step, output=True)
+                x = flow[:, 0]
+                y = flow[:, 1]
+                ax.quiver(x[:-1], y[:-1], np.diff(x), np.diff(y),
+                          angles='xy', scale_units='xy', scale=1, width=0.003)
+
+            ax.tick_params(axis="both", direction="in", left=True,
+                           width=lw, length=4, labelsize=fs)
+            ax.set_xlabel(r"Interaction Energy $\mathrm{J}$", fontsize=fs)
+            ax.set_ylabel(r"Magnetic Field $\mathrm{H}$", fontsize=fs)
+            #ax.legend()
+            plt.grid(True)
+            plt.tight_layout()
+            #plt.savefig("densities", dpi=300)
+            plt.show()
+            return fig
